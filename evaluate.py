@@ -1,22 +1,4 @@
-﻿"""
-AI Resume Screening and Candidate Ranking System
--------------------------------------------------
-evaluate.py
-
-Evaluates the trained model on the held-out test set and generates
-visualisations and reports in the outputs/ directory.
-
-Steps:
-1. Load best_model.pkl, tfidf_vectorizer.pkl, and test_data.pkl.
-2. Transform the test set using transform() only (no fitting).
-3. Generate predictions and compute evaluation metrics.
-4. Save:
-     outputs/classification_report.txt
-     outputs/confusion_matrix.png
-     outputs/accuracy_comparison.png
-     outputs/feature_importance.png
-     outputs/evaluation_metrics.csv
-"""
+# Evaluates the trained model on the held-out test set and saves reports/charts to outputs/.
 
 import pandas as pd
 import joblib
@@ -33,16 +15,12 @@ from sklearn.metrics import (
     ConfusionMatrixDisplay,
 )
 
-# Paths
 MODELS_DIR = Path("models")
 OUTPUT_DIR = Path("outputs")
-
 OUTPUT_DIR.mkdir(exist_ok=True)
 
-# Load Saved Artifacts
-print("=" * 60)
+# Load model artifacts
 print("Loading model artifacts...")
-print("=" * 60)
 
 best_model = joblib.load(MODELS_DIR / "best_model.pkl")
 vectorizer = joblib.load(MODELS_DIR / "tfidf_vectorizer.pkl")
@@ -52,22 +30,15 @@ print(f"  Model type  : {type(best_model).__name__}")
 print(f"  Test samples: {len(X_test):,}")
 print(f"  Classes     : {list(best_model.classes_)}")
 
-# Transform Test Data
-# IMPORTANT: Only transform() is called here.
-# The vectorizer was already fitted on training data in train_model.py.
+# Transform test data (never fit on test set)
 print("\nTransforming test data...")
 X_test_tfidf = vectorizer.transform(X_test)
 print(f"  X_test_tfidf shape: {X_test_tfidf.shape}")
 
-# Generate Predictions
-print("\nGenerating predictions...")
-y_pred = best_model.predict(X_test_tfidf)
+# Compute metrics
+print("\nEvaluation Results (Test Set)")
 
-# Compute Evaluation Metrics
-print("\n" + "=" * 60)
-print("Evaluation Results (Test Set)")
-print("=" * 60)
-
+y_pred    = best_model.predict(X_test_tfidf)
 accuracy  = accuracy_score(y_test, y_pred)
 precision = precision_score(y_test, y_pred, average="weighted", zero_division=0)
 recall    = recall_score(y_test, y_pred, average="weighted", zero_division=0)
@@ -78,9 +49,8 @@ print(f"  Precision : {precision:.4f}")
 print(f"  Recall    : {recall:.4f}")
 print(f"  F1 Score  : {f1:.4f}")
 
-# Classification Report
+# Classification report
 print("\nClassification Report:")
-print("-" * 60)
 report = classification_report(y_test, y_pred, zero_division=0)
 print(report)
 
@@ -96,7 +66,7 @@ with open(report_path, "w") as f:
     f.write(report)
 print(f"Saved: {report_path}")
 
-# Confusion Matrix
+# Confusion matrix
 print("\nGenerating confusion matrix...")
 
 cm   = confusion_matrix(y_test, y_pred, labels=best_model.classes_)
@@ -111,18 +81,17 @@ plt.savefig(OUTPUT_DIR / "confusion_matrix.png", dpi=150)
 plt.close()
 print(f"Saved: outputs/confusion_matrix.png")
 
-# Accuracy Comparison Chart
-# (reads the model_comparison.csv produced by train_model.py)
+# Accuracy comparison chart (reads model_comparison.csv from train_model.py)
 comparison_csv = OUTPUT_DIR / "model_comparison.csv"
 if comparison_csv.exists():
     print("\nGenerating accuracy comparison chart...")
     comparison_df = pd.read_csv(comparison_csv)
 
-    colors = ["#4C72B0", "#55A868", "#C44E52"]
+    colors = ["#4C72B0", "#55A868", "#C44E52"]  # matches model order: LR, DT, RF
     fig, ax = plt.subplots(figsize=(8, 5))
     bars = ax.bar(comparison_df["Model"], comparison_df["Accuracy"], color=colors, width=0.5)
 
-    # Add value labels on top of each bar
+    # Add accuracy value labels above each bar
     for bar, val in zip(bars, comparison_df["Accuracy"]):
         ax.text(
             bar.get_x() + bar.get_width() / 2,
@@ -146,8 +115,7 @@ if comparison_csv.exists():
 else:
     print(f"Warning: {comparison_csv} not found. Run train_model.py first.")
 
-# Feature Importance (only available for tree-based models)
-# Shows which TF-IDF words (features) the Random Forest found most useful.
+# Feature importance (tree models only)
 if hasattr(best_model, "feature_importances_"):
     print("\nGenerating feature importance chart...")
 
@@ -159,12 +127,11 @@ if hasattr(best_model, "feature_importances_"):
         "Importance": importances,
     })
 
-    # Take the top 20 most important features
     top_20 = importance_df.sort_values("Importance", ascending=False).head(20)
 
     fig, ax = plt.subplots(figsize=(10, 8))
     ax.barh(top_20["Feature"], top_20["Importance"], color="steelblue")
-    ax.invert_yaxis()  # Highest importance at top
+    ax.invert_yaxis()  # highest importance at top
     ax.set_title("Top 20 Important Features (Random Forest)", fontsize=14, pad=15)
     ax.set_xlabel("Importance Score")
     ax.set_ylabel("Feature (Word)")
@@ -175,7 +142,7 @@ if hasattr(best_model, "feature_importances_"):
 else:
     print("Model does not expose feature_importances_. Skipping feature importance chart.")
 
-# Save Evaluation Metrics to CSV
+# Save metrics to CSV
 metrics_df = pd.DataFrame({
     "Metric": ["Accuracy", "Precision", "Recall", "F1 Score"],
     "Value":  [accuracy,   precision,   recall,   f1],

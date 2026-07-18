@@ -1,6 +1,3 @@
-
-#import necessary libraries
-
 import re
 import string
 import streamlit as st
@@ -11,33 +8,23 @@ import nltk
 from pathlib import Path
 from sklearn.metrics.pairwise import cosine_similarity
 
-
-# NLTK Setup
-# Download stopwords silently on first run.
+# Download stopwords on first run
 
 nltk.download("stopwords", quiet=True)
 from nltk.corpus import stopwords
 
-STOP_WORDS = set(stopwords.words("english"))
+STOP_WORDS = set(stopwords.words("english"))  # set for O(1) lookup
 
-# ---------------------------------------------------------------------------
-# Page Configuration
-# ---------------------------------------------------------------------------
 st.set_page_config(
     page_title="AI Resume Screening System",
     layout="wide",
     initial_sidebar_state="expanded",
 )
 
-# ---------------------------------------------------------------------------
-# File Paths
-# ---------------------------------------------------------------------------
 MODELS_DIR = Path("models")
 DATA_DIR   = Path("data")
 
-# ---------------------------------------------------------------------------
-# Sidebar
-# ---------------------------------------------------------------------------
+# Sidebar — project info
 st.sidebar.title("Project Information")
 st.sidebar.markdown("---")
 st.sidebar.write("**Project Title:**")
@@ -54,58 +41,21 @@ st.sidebar.write("**Features:**")
 st.sidebar.write("TF-IDF on Resume + Job Description")
 
 
-# ---------------------------------------------------------------------------
-# Text Cleaning Function
-#
-# CRITICAL: This function must be IDENTICAL to clean_text() in preprocessing.py.
-#
-# The TF-IDF vectorizer was fitted on text produced by that function.
-# Any difference here shifts the feature space and breaks predictions.
-#
-# Cleaning steps (in the same order as preprocessing.py):
-#   1. Handle NaN / empty string
-#   2. Lowercase
-#   3. Remove numbers (delete entirely, NOT replaced with a space)
-#   4. Remove punctuation using string.punctuation
-#   5. Collapse whitespace
-#   6. Remove NLTK English stopwords
-# ---------------------------------------------------------------------------
 def clean_text(text):
-    """
-    Clean input text to match the training pipeline exactly.
-    Returns a cleaned, space-separated string of meaningful words.
-    """
+    """Clean text — must stay identical to preprocessing.py to avoid feature space drift."""
     if pd.isna(text) or str(text).strip() == "":
         return ""
 
-    # Step 1: Lowercase
     text = str(text).lower()
-
-    # Step 2: Remove numbers entirely
     text = re.sub(r"\d+", "", text)
-
-    # Step 3: Remove punctuation
     text = text.translate(str.maketrans("", "", string.punctuation))
-
-    # Step 4: Collapse whitespace
     text = re.sub(r"\s+", " ", text).strip()
-
-    # Step 5: Remove stopwords
-    words = text.split()
-    words = [w for w in words if w not in STOP_WORDS]
-
+    words = [w for w in text.split() if w not in STOP_WORDS]
     return " ".join(words)
 
 
-# ---------------------------------------------------------------------------
-# PDF / TXT Text Extraction
-# ---------------------------------------------------------------------------
 def extract_text_from_file(uploaded_file):
-    """
-    Extract raw text from a PDF or TXT file.
-    Returns (text, error_message).
-    On success, error_message is None.
-    """
+    """Extracts text from a PDF or TXT upload. Returns (text, error)."""
     resume_text = ""
     try:
         if uploaded_file.name.lower().endswith(".pdf"):
@@ -124,29 +74,14 @@ def extract_text_from_file(uploaded_file):
     return resume_text, None
 
 
-# ---------------------------------------------------------------------------
-# Load Model Resources (cached)
-#
-# @st.cache_resource prevents reloading large .pkl files on every
-# Streamlit interaction. Resources are loaded once per session.
-# ---------------------------------------------------------------------------
 @st.cache_resource
 def load_resources():
-    """
-    Load the trained model, TF-IDF vectorizer, and cleaned job dataset.
-    Returns (model, vectorizer, job_dataframe, error_message).
-    error_message is None on success.
-    """
+    """Loads model, vectorizer, and job dataset once per session."""
     model_path      = MODELS_DIR / "best_model.pkl"
     vectorizer_path = MODELS_DIR / "tfidf_vectorizer.pkl"
     job_data_path   = DATA_DIR   / "clean_job_dataset.csv"
 
-    # Check all required files exist before loading
-    missing = []
-    for path in [model_path, vectorizer_path, job_data_path]:
-        if not path.exists():
-            missing.append(str(path))
-
+    missing = [str(p) for p in [model_path, vectorizer_path, job_data_path] if not p.exists()]
     if missing:
         return None, None, None, "Missing files: " + ", ".join(missing)
 
@@ -159,10 +94,7 @@ def load_resources():
         return None, None, None, f"Failed to load resources: {e}"
 
 
-# ---------------------------------------------------------------------------
-# Main Application
-# ---------------------------------------------------------------------------
-st.title("AI Resume Screening and Candidate Ranking System")
+st.title("Resume Screening and Candidate Ranking System")
 st.write(
     "Select a job posting, upload a resume, and the system will predict "
     "whether the candidate is **Highly Suitable**, **Suitable**, or "
@@ -170,10 +102,8 @@ st.write(
 )
 st.markdown("---")
 
-# Load all required resources
 best_model, tfidf_vectorizer, job_df, load_error = load_resources()
 
-# Stop early if any file is missing or failed to load
 if load_error:
     st.error(f"Startup Error: {load_error}")
     st.info(
@@ -186,13 +116,7 @@ if load_error:
     )
     st.stop()
 
-# ---------------------------------------------------------------------------
-# Step 1: Job Selection
-#
-# The job_df is loaded from clean_job_dataset.csv, which contains the
-# pre-cleaned job descriptions produced by preprocessing.py.
-# We use Clean_Job directly — no additional cleaning is applied.
-# ---------------------------------------------------------------------------
+# --- Job Selection ---
 st.subheader("1. Select a Job Posting")
 
 job_titles = job_df["Display_Name"].tolist()
@@ -208,11 +132,9 @@ if not selected_title:
     st.info("Please select a job role from the dropdown to continue.")
     st.stop()
 
-# Retrieve the pre-cleaned job description (already processed by preprocessing.py)
-selected_job_row  = job_df[job_df["Display_Name"] == selected_title].iloc[0]
-clean_job_text    = str(selected_job_row["Clean_Job"])
+selected_job_row = job_df[job_df["Display_Name"] == selected_title].iloc[0]
+clean_job_text   = str(selected_job_row["Clean_Job"])
 
-# Guard against empty job descriptions in the CSV
 if not clean_job_text.strip():
     st.error("The selected job posting has an empty description. Please choose another role.")
     st.stop()
@@ -222,9 +144,7 @@ with st.expander("View Job Description (cleaned text)"):
 
 st.markdown("---")
 
-# ---------------------------------------------------------------------------
-# Step 2: Resume Upload
-# ---------------------------------------------------------------------------
+# --- Resume Upload ---
 st.subheader("2. Upload Resume")
 
 uploaded_file = st.file_uploader(
@@ -236,7 +156,6 @@ if uploaded_file is None:
     st.info("Please upload a resume to see the evaluation.")
     st.stop()
 
-# Extract raw text from the uploaded file
 raw_resume_text, extract_error = extract_text_from_file(uploaded_file)
 
 if extract_error:
@@ -254,12 +173,6 @@ with st.expander("Preview Uploaded Resume (raw text)"):
     preview = raw_resume_text[:3000]
     st.text(preview + ("..." if len(raw_resume_text) > 3000 else ""))
 
-# ---------------------------------------------------------------------------
-# Step 3: Text Preprocessing
-#
-# Apply the SAME clean_text() used during training (defined above).
-# This ensures the resume tokens match the TF-IDF vocabulary.
-# ---------------------------------------------------------------------------
 cleaned_resume = clean_text(raw_resume_text)
 
 if not cleaned_resume.strip():
@@ -269,51 +182,27 @@ if not cleaned_resume.strip():
     )
     st.stop()
 
-# ---------------------------------------------------------------------------
-# Step 4: Combine Resume + Job Description
-#
-# This is the critical step that enables multi-job generalisation.
-# The model was trained on Combined_Text = cleaned_resume + " " + clean_job.
-# We replicate that EXACT format here.
-# ---------------------------------------------------------------------------
-combined_text = cleaned_resume + " " + clean_job_text
-
-# ---------------------------------------------------------------------------
-# Step 5: TF-IDF Vectorization
-#
-# ONLY transform() is called — never fit() or fit_transform().
-# The vectorizer vocabulary was fixed during training in train_model.py.
-# ---------------------------------------------------------------------------
+# Combine text (same format used during training) then vectorize
+# Only transform() — vocabulary is frozen from training, never re-fit
+combined_text   = cleaned_resume + " " + clean_job_text
 combined_vector = tfidf_vectorizer.transform([combined_text])
+resume_vector   = tfidf_vectorizer.transform([cleaned_resume])
+job_vector      = tfidf_vectorizer.transform([clean_job_text])
 
-# Also transform resume and job separately for cosine similarity display
-resume_vector = tfidf_vectorizer.transform([cleaned_resume])
-job_vector    = tfidf_vectorizer.transform([clean_job_text])
-
-# ---------------------------------------------------------------------------
-# Step 6: Prediction
-# ---------------------------------------------------------------------------
+# Predict suitability
 prediction    = best_model.predict(combined_vector)[0]
 probabilities = best_model.predict_proba(combined_vector)[0]
 class_labels  = list(best_model.classes_)
 prob_dict     = dict(zip(class_labels, probabilities))
 confidence    = prob_dict[prediction]
 
-# ---------------------------------------------------------------------------
-# Step 7: Cosine Similarity (informational display only)
-#
-# Computed between the resume vector and job vector using the trained
-# TF-IDF vocabulary. NOT used for prediction — the model decides that.
-# ---------------------------------------------------------------------------
+# Cosine similarity — display only, not used for prediction
 similarity_score = cosine_similarity(resume_vector, job_vector)[0][0]
 
-# ---------------------------------------------------------------------------
-# Step 8: Display Results
-# ---------------------------------------------------------------------------
+# --- Results ---
 st.markdown("---")
 st.subheader("3. Evaluation Results")
 
-# Colour-coded prediction banner
 if prediction == "Highly Suitable":
     st.success(f"Prediction:  {prediction}")
 elif prediction == "Suitable":
@@ -321,7 +210,6 @@ elif prediction == "Suitable":
 else:
     st.error(f"Prediction:  {prediction}")
 
-# Recommendation text
 recommendation_map = {
     "Highly Suitable": (
         "This candidate strongly matches the job requirements. "
@@ -338,7 +226,6 @@ recommendation_map = {
 }
 st.info(f"Recommendation: {recommendation_map[prediction]}")
 
-# Metric columns
 col1, col2 = st.columns(2)
 
 with col1:
@@ -356,9 +243,6 @@ with col2:
     )
     st.progress(float(min(similarity_score, 1.0)))
 
-# ---------------------------------------------------------------------------
-# Debug Panel (expandable)
-# ---------------------------------------------------------------------------
 with st.expander("Debug Information"):
     st.write("**Raw resume word count:**", len(raw_resume_text.split()))
     st.write("**Cleaned resume word count:**", len(cleaned_resume.split()))
@@ -375,9 +259,7 @@ with st.expander("Debug Information"):
     st.table(prob_df)
     st.write(f"**Cosine similarity score:** {similarity_score:.6f}")
 
-# ---------------------------------------------------------------------------
-# Step 9: Export Report
-# ---------------------------------------------------------------------------
+# --- Export Report ---
 st.markdown("---")
 st.subheader("4. Export Report")
 
@@ -389,7 +271,6 @@ report_data = {
     "Cosine Similarity (%)":  [f"{similarity_score * 100:.2f}"],
 }
 
-# Add per-class probability columns
 for label in class_labels:
     report_data[f"P({label}) (%)"] = [f"{prob_dict[label] * 100:.2f}"]
 
