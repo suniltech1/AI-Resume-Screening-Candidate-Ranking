@@ -13,7 +13,7 @@ from sklearn.metrics import (
     recall_score,
     f1_score,
 )
-
+# Directories
 DATA_DIR   = Path("data")
 MODELS_DIR = Path("models")
 OUTPUT_DIR = Path("outputs")
@@ -61,8 +61,7 @@ print(f"  TF-IDF vocabulary size : {len(vectorizer.vocabulary_):,} features")
 print(f"  X_train_tfidf shape    : {X_train_tfidf.shape}")
 print(f"  X_val_tfidf shape      : {X_val_tfidf.shape}")
 print(f"  X_test_tfidf shape     : {X_test_tfidf.shape}")
-
-
+#  Evaluate on validation set
 def evaluate_on_validation(model, X_val_tfidf, y_val):
     """Evaluates a model on the validation set and returns weighted metrics."""
     y_pred    = model.predict(X_val_tfidf)

@@ -35,7 +35,7 @@ print("\nTransforming test data...")
 X_test_tfidf = vectorizer.transform(X_test)
 print(f"  X_test_tfidf shape: {X_test_tfidf.shape}")
 
-# Compute metrics
+# Compute metrics for visualization
 print("\nEvaluation Results (Test Set)")
 
 y_pred    = best_model.predict(X_test_tfidf)
@@ -53,7 +53,7 @@ print(f"  F1 Score  : {f1:.4f}")
 print("\nClassification Report:")
 report = classification_report(y_test, y_pred, zero_division=0)
 print(report)
-
+# Save classification report
 report_path = OUTPUT_DIR / "classification_report.txt"
 with open(report_path, "w") as f:
     f.write("AI Resume Screening — Classification Report\n")
@@ -66,7 +66,7 @@ with open(report_path, "w") as f:
     f.write(report)
 print(f"Saved: {report_path}")
 
-# Confusion matrix
+# Confusion matrix for visualization
 print("\nGenerating confusion matrix...")
 
 cm   = confusion_matrix(y_test, y_pred, labels=best_model.classes_)

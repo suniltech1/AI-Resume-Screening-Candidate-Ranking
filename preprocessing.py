@@ -1,5 +1,4 @@
 # Generates Resume-Job training pairs and saves cleaned datasets.
-
 import re
 import string
 import numpy as np
@@ -12,7 +11,7 @@ from sklearn.metrics.pairwise import cosine_similarity
 
 # Max jobs sampled for training pairs (all jobs still saved for the UI)
 N_SAMPLE_JOBS_FOR_TRAINING = 60
-
+# Random seed for reproducibility
 RANDOM_SEED = 42
 DATA_DIR    = Path("data")
 
@@ -91,7 +90,7 @@ print("Saved: data/clean_job_dataset.csv")
 
 # Step 3: Generate Resume-Job training pairs
 print("\nGenerating Resume-Job training pairs...")
-
+# sample N_SAMPLE_JOBS_FOR_TRAINING unique job postings
 if len(job_df) > N_SAMPLE_JOBS_FOR_TRAINING:
     sampled_job_df = job_df.sample(n=N_SAMPLE_JOBS_FOR_TRAINING, random_state=RANDOM_SEED).reset_index(drop=True)
     print(f"Sampled {N_SAMPLE_JOBS_FOR_TRAINING} unique job postings for training pair generation.")

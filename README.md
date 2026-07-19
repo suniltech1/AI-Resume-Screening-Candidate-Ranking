@@ -1,6 +1,6 @@
-# AI-Powered Resume Screening and Candidate Ranking System
+# AI-powered Resume Screening and Candidate Ranking System
 
-A machine learning system that automatically screens resumes and ranks candidates based on their suitability for a given job posting. Built as a university final-year AI project using Python and Streamlit.
+A machine learning system that automatically screens resumes and ranks candidates based on their suitability for a given job posting. Built as a machine learning project using Python and Streamlit.
 
 ---
 
@@ -168,4 +168,4 @@ Then open your browser at `http://localhost:8501`.
 
 **Sunil Kumar Khadka**
 Student ID: 250123
-University Final-Year AI Project
+

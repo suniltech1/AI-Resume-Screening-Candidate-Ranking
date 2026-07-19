@@ -36,7 +36,7 @@ st.sidebar.write("**Student ID:**")
 st.sidebar.write("250123")
 st.sidebar.markdown("---")
 st.sidebar.write("**Model:**")
-st.sidebar.write("Random Forest (GridSearchCV tuned)")
+st.sidebar.write("Random Forest")
 st.sidebar.write("**Features:**")
 st.sidebar.write("TF-IDF on Resume + Job Description")
 
@@ -93,7 +93,7 @@ def load_resources():
     except Exception as e:
         return None, None, None, f"Failed to load resources: {e}"
 
-
+# Heading of the app
 st.title("Resume Screening and Candidate Ranking System")
 st.write(
     "Select a job posting, upload a resume, and the system will predict "
@@ -101,7 +101,7 @@ st.write(
     "**Not Suitable** for that specific role."
 )
 st.markdown("---")
-
+# Load resources
 best_model, tfidf_vectorizer, job_df, load_error = load_resources()
 
 if load_error:
@@ -127,14 +127,14 @@ selected_title = st.selectbox(
     index=None,
     placeholder="Search for a job role...",
 )
-
+# If no job is selected, show a message and stop
 if not selected_title:
     st.info("Please select a job role from the dropdown to continue.")
     st.stop()
-
+#  Select the job posting row and get the clean job text
 selected_job_row = job_df[job_df["Display_Name"] == selected_title].iloc[0]
 clean_job_text   = str(selected_job_row["Clean_Job"])
-
+# If the job description is empty, show an error and stop
 if not clean_job_text.strip():
     st.error("The selected job posting has an empty description. Please choose another role.")
     st.stop()
@@ -151,17 +151,18 @@ uploaded_file = st.file_uploader(
     "Upload a candidate resume (PDF or TXT):",
     type=["pdf", "txt"],
 )
-
+# If no file is uploaded, show a message and stop
 if uploaded_file is None:
     st.info("Please upload a resume to see the evaluation.")
     st.stop()
-
+#  Extract text from the uploaded file
 raw_resume_text, extract_error = extract_text_from_file(uploaded_file)
 
+# If the file cannot be read, show an error and stop
 if extract_error:
     st.error(f"File Error: {extract_error}")
     st.stop()
-
+# If the extracted text is empty, show an error and stop
 if not raw_resume_text.strip():
     st.error(
         "The uploaded file appears to be empty or contains no readable text. "
@@ -209,7 +210,7 @@ elif prediction == "Suitable":
     st.warning(f"Prediction:  {prediction}")
 else:
     st.error(f"Prediction:  {prediction}")
-
+# Map the prediction to a recommendation
 recommendation_map = {
     "Highly Suitable": (
         "This candidate strongly matches the job requirements. "
@@ -225,7 +226,7 @@ recommendation_map = {
     ),
 }
 st.info(f"Recommendation: {recommendation_map[prediction]}")
-
+# Display model confidence and resume-job similarity
 col1, col2 = st.columns(2)
 
 with col1:
@@ -242,7 +243,7 @@ with col2:
         help="Cosine similarity between resume and job description (informational only).",
     )
     st.progress(float(min(similarity_score, 1.0)))
-
+# Debug information
 with st.expander("Debug Information"):
     st.write("**Raw resume word count:**", len(raw_resume_text.split()))
     st.write("**Cleaned resume word count:**", len(cleaned_resume.split()))
